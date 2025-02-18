@@ -27,8 +27,14 @@ if [ ! -f ${BUILD_DIR}/system.properties ]; then
   echo "java.runtime.version=11" > ${BUILD_DIR}/system.properties
 fi
 
-# install JDK
-javaVersion=$(get_jdk_version "${BUILD_DIR}")
+# Get Java version from system.properties
+javaVersion=$(grep 'java.runtime.version' ${BUILD_DIR}/system.properties | cut -d '=' -f 2 | tr -d '[:space:]')
+
+if [ -z "$javaVersion" ]; then
+  echo "-----> ERROR: No java.runtime.version specified in system.properties. Falling back to Java 11."
+  javaVersion="11"
+fi
+
 echo -n "-----> Installing OpenJDK ${javaVersion}..."
 install_java ${BUILD_DIR} ${javaVersion}
 jdk_overlay ${BUILD_DIR}
