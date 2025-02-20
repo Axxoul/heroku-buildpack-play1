@@ -36,7 +36,7 @@ if [ -z "$javaVersion" ]; then
 fi
 
 echo -n "-----> Installing OpenJDK ${javaVersion}..."
-install_java ${BUILD_DIR} ${javaVersion}
+install_java_with_overlay ${BUILD_DIR} ${javaVersion}
 jdk_overlay ${BUILD_DIR}
 echo " done"
 
