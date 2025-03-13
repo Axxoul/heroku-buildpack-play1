@@ -27,17 +27,11 @@ if [ ! -f ${BUILD_DIR}/system.properties ]; then
   echo "java.runtime.version=11" > ${BUILD_DIR}/system.properties
 fi
 
-# Get Java version from system.properties
-javaVersion=$(grep 'java.runtime.version' ${BUILD_DIR}/system.properties | cut -d '=' -f 2 | tr -d '[:space:]')
-
-if [ -z "$javaVersion" ]; then
-  echo "-----> ERROR: No java.runtime.version specified in system.properties. Falling back to Java 11."
-  javaVersion="11"
-fi
-
+# install JDK
+javaVersion=$(get_jdk_version "${BUILD_DIR}")
 echo -n "-----> Installing OpenJDK ${javaVersion}..."
-install_java_with_overlay ${BUILD_DIR} ${javaVersion}
-jdk_overlay ${BUILD_DIR}
+# Replace the deprecated functions with the new recommended method
+install_openjdk "${BUILD_DIR}" "${BUILDPACK_DIR}" "${javaVersion}"
 echo " done"
 
 PLAY_PATH=".play"
