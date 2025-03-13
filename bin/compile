@@ -27,11 +27,30 @@ if [ ! -f ${BUILD_DIR}/system.properties ]; then
   echo "java.runtime.version=11" > ${BUILD_DIR}/system.properties
 fi
 
+# Define BUILDPACK_DIR
+BUILDPACK_DIR=$(cd $(dirname $0); cd ..; pwd)
+
 # install JDK
-javaVersion=$(get_jdk_version "${BUILD_DIR}")
+# Default to Java 11 if get_jdk_version function is not available
+if type -t get_jdk_version > /dev/null; then
+  javaVersion=$(get_jdk_version "${BUILD_DIR}")
+else
+  javaVersion=$(grep -P '^\s*java.runtime.version' "${BUILD_DIR}/system.properties" | sed -E -e 's/^\s*java.runtime.version\s*=\s*(.+)\s*$/\1/g' || echo "11")
+fi
+
 echo -n "-----> Installing OpenJDK ${javaVersion}..."
-# Replace the deprecated functions with the new recommended method
-install_openjdk "${BUILD_DIR}" "${BUILDPACK_DIR}" "${javaVersion}"
+# Replace the deprecated functions with the new method
+if type -t install_openjdk > /dev/null; then
+  install_openjdk "${BUILD_DIR}" "${BUILDPACK_DIR}" "${javaVersion}"
+else
+  # Fallback to installing Java manually if function not available
+  JAVADIR="${BUILD_DIR}/.jdk"
+  mkdir -p "${JAVADIR}"
+  JVM_URL="https://cdn.azul.com/zulu/bin/zulu11.60.19-ca-jdk11.0.17-linux_x64.tar.gz"
+  curl --retry 3 --silent --location "${JVM_URL}" | tar xzm -C "${JAVADIR}" --strip-components=1
+  export JAVA_HOME="${JAVADIR}"
+  export PATH="${JAVA_HOME}/bin:${PATH}"
+fi
 echo " done"
 
 PLAY_PATH=".play"
@@ -103,9 +122,15 @@ for DIR in $PLAY_PATH $IVY_PATH ; do
   cp -r $DIR $CACHE_DIR/$DIR
 done
 
+# Set up proper Java environment variables
 PROFILE_PATH="$BUILD_DIR/.profile.d/play.sh"
 mkdir -p $(dirname $PROFILE_PATH)
+echo 'export JAVA_HOME=/app/.jdk' >> $PROFILE_PATH
 echo 'export PATH="/app/.play:/app/.jdk/bin:/app/.tools:$PATH"' >> $PROFILE_PATH
+
+# Set JAVA_HOME for the rest of the script
+export JAVA_HOME="${BUILD_DIR}/.jdk"
+export PATH="${JAVA_HOME}/bin:${PATH}"
 
 # Remove build time dependencies from slug
 # (Note: runtime modules are copied to slug with --forceCopy option)
